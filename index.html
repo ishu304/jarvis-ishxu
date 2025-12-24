@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KARA – Personal AI Interface</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      background: radial-gradient(circle at top, #1f2933 0, #020617 45%, #000 100%);
+    }
+    .glass {
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 55%),
+                  rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow:
+        0 0 40px rgba(15, 23, 42, 0.9),
+        0 0 120px rgba(56, 189, 248, 0.25);
+    }
+    .neon-text {
+      text-shadow:
+        0 0 5px rgba(34, 211, 238, 0.8),
+        0 0 18px rgba(56, 189, 248, 0.75),
+        0 0 40px rgba(59, 130, 246, 0.6);
+    }
+    .scanline::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.2) 0,
+        rgba(15, 23, 42, 0.2) 1px,
+        rgba(0, 0, 0, 0) 3px,
+        rgba(0, 0, 0, 0) 4px
+      );
+      mix-blend-mode: soft-light;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+    .pulse-ring {
+      box-shadow:
+        0 0 0 0 rgba(56, 189, 248, 0.45);
+      animation: pulse-ring 1.8s infinite;
+    }
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55); }
+      70% { box-shadow: 0 0 0 16px rgba(56, 189, 248, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+    @keyframes caret {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .caret::after {
+      content: "▌";
+      display: inline-block;
+      margin-left: 2px;
+      animation: caret 1s steps(1) infinite;
+    }
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.6);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex items-center justify-center px-4 py-6">
+  <div class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-[1.1fr,0.9fr] gap-6 items-stretch">
+    <!-- Main console -->
+    <section class="relative glass rounded-3xl p-5 sm:p-7 md:p-8 overflow-hidden scanline">
+      <div class="absolute -inset-40 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,.15),_transparent_55%)] pointer-events-none"></div>
+      <div class="relative flex flex-col h-full gap-5">
+        <!-- Header -->
+        <header class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-cyan-300/70 bg-slate-900/60 flex items-center justify-center pulse-ring">
+              <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-400 via-sky-300 to-blue-500 shadow-[0_0_25px_rgba(56,189,248,0.85)]"></div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-slate-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]"></span>
+                <span>Online</span>
+                <span class="hidden sm:inline">● Neural Core v1.0</span>
+              </div>
+              <h1 class="mt-0.5 text-2xl sm:text-3xl font-semibold text-cyan-100 neon-text tracking-wide">
+                KARA <span class="text-slate-300/80 text-base align-middle">/ Quantum Assistant</span>
+              </h1>
+            </div>
+          </div>
+          <div class="hidden sm:flex flex-col items-end text-[10px] uppercase tracking-[0.25em] text-slate-400/80">
+            <span>Protocol: JARVIS-Mode</span>
+            <span id="kara-clock" class="font-mono text-[11px] text-cyan-200/80 mt-1">···</span>
+          </div>
+        </header>
+
+        <!-- Status bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 text-[11px] uppercase tracking-[0.22em] text-slate-400/80 border-y border-slate-700/80 py-2">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Core Stable</span>
+            <span class="hidden xs:inline">｜</span>
+            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>Context Linked</span>
+            <span class="hidden xs:inline">｜</span>
+            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>Predictive Engine</span>
+          </div>
+          <div class="flex items-center gap-2 text-[10px]">
+            <span class="px-2 py-0.5 rounded-full border border-slate-600/80 bg-slate-900/70 text-slate-300/90">LOCAL</span>
+            <span class="hidden sm:inline text-slate-500">No network – demo brain active</span>
+          </div>
+        </div>
+
+        <!-- Console -->
+        <div class="flex-1 min-h-[260px] sm:min-h-[320px] md:min-h-[360px] max-h-[420px] md:max-h-[460px] bg-slate-950/70 border border-slate-800/70 rounded-2xl p-3 sm:p-4 md:p-5 font-mono text-[12px] sm:text-[13px] relative overflow-hidden">
+          <div class="absolute inset-x-0 top-0 h-8 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.4),_transparent)] opacity-60 pointer-events-none"></div>
+
+          <!-- Console header row -->
+          <div class="flex items-center justify-between mb-2 text-[11px] text-slate-400">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="ml-2 text-slate-500/90">kara.shell / interactive session</span>
+            </div>
+            <span class="hidden sm:inline text-cyan-300/80">Type `help` for capabilities</span>
+          </div>
+
+          <div id="console" class="relative h-[calc(100%-1.25rem)] overflow-y-auto pr-2 scrollbar-thin">
+            <!-- Seed messages -->
+            <div class="text-slate-500 mb-2">booting kara-core…</div>
+            <div class="text-emerald-300 mb-1">[SYSTEM] integrity-check › OK</div>
+            <div class="text-sky-300 mb-4">[SYSTEM] interface-online › awaiting operator</div>
+
+            <div class="mb-4">
+              <div class="text-cyan-300">KARA ▸</div>
+              <div class="text-slate-200">I am online. How can I assist you, operator?</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input & controls -->
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mt-1">
+          <div class="flex-1 relative">
+            <label class="block text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1">Command Line</label>
+            <div class="flex items-center gap-2 bg-slate-950/80 border border-slate-700/80 rounded-2xl px-3.5 py-2.5">
+              <span class="text-xs text-cyan-400/90 select-none">kara&gt;</span>
+              <input id="kara-input" type="text" autocomplete="off" class="flex-1 bg-transparent outline-none border-none text-[13px] text-slate-100 placeholder:text-slate-500" placeholder="Ask anything or type a command (e.g. help, time, calc 2+2)…" />
+            </div>
+          </div>
+          <div class="flex gap-2 sm:flex-col md:flex-row">
+            <button id="send-btn" class="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-sm font-medium text-slate-950 shadow-[0_0_25px_rgba(56,189,248,0.65)] transition-transform active:scale-[0.97]">
+              Execute
+            </button>
+            <button id="voice-btn" class="inline-flex items-center justify-center px-3.5 py-2.5 rounded-2xl border border-slate-600/80 bg-slate-950/80 text-xs font-medium text-slate-200 gap-2 hover:border-cyan-400/70 hover:text-cyan-200 transition-colors">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-500" id="voice-indicator"></span>
+              Voice
+            </button>
+          </div>
+        </div>
+
+        <p class="mt-1.5 text-[10px] text-slate-500/90 uppercase tracking-[0.23em]">
+          Local demo only • No external connections • Behaves like a lightweight Jarvis-style assistant
+        </p>
+      </div>
+    </section>
+
+    <!-- Side panel: quick actions / help -->
+    <aside class="glass rounded-3xl p-5 sm:p-6 md:p-7 flex flex-col gap-5 relative overflow-hidden">
+      <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-[radial-gradient(circle,_rgba(56,189,248,0.35),_transparent_70%)] opacity-70 pointer-events-none"></div>
+      <div class="relative flex flex-col gap-5">
+        <div>
+          <h2 class="text-sm font-semibold tracking-[0.24em] uppercase text-slate-400 flex items-center gap-2">
+            Operator Panel
+            <span class="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]"></span>
+          </h2>
+          <p class="mt-2 text-sm text-slate-300/90">
+            KARA is a local, browser-based assistant inspired by JARVIS. Use natural language or system-style commands.
+          </p>
+        </div>
+
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold tracking-[0.23em] uppercase text-slate-400">Sample Commands</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[12px]">
+            <button data-kara-preset="help" class="text-left px-3 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-cyan-400/80 hover:bg-slate-900/90 transition-colors">
+              <div class="text-[10px] tracking-[0.22em] uppercase text-slate-400">System</div>
+              <div class="text-slate-100">help</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Show capabilities</div>
+            </button>
+            <button data-kara-preset="time" class="text-left px-3 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-cyan-400/80 hover:bg-slate-900/90 transition-colors">
+              <div class="text-[10px] tracking-[0.22em] uppercase text-slate-400">Temporal</div>
+              <div class="text-slate-100">time / date</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Current system time</div>
+            </button>
+            <button data-kara-preset="calc 42*3" class="text-left px-3 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-cyan-400/80 hover:bg-slate-900/90 transition-colors">
+              <div class="text-[10px] tracking-[0.22em] uppercase text-slate-400">Math</div>
+              <div class="text-slate-100">calc 42*3</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Inline calculator</div>
+            </button>
+            <button data-kara-preset="summarize what you can do" class="text-left px-3 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-700/80 hover:border-cyan-400/80 hover:bg-slate-900/90 transition-colors">
+              <div class="text-[10px] tracking-[0.22em] uppercase text-slate-400">Assistant</div>
+              <div class="text-slate-100">summarize what you can do</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Explain KARA</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-3 mt-1">
+          <h3 class="text-xs font-semibold tracking-[0.23em] uppercase text-slate-400">Capabilities</h3>
+          <ul class="space-y-1.5 text-[12px] text-slate-300/90 list-disc list-inside">
+            <li>Conversational chat in a Jarvis-style tone</li>
+            <li>Time & date reporting from your device</li>
+            <li>Quick calculations via <span class="font-mono bg-slate-900/60 px-1.5 py-0.5 rounded">calc &lt;expression&gt;</span></li>
+            <li>Simple task-style breakdowns (plans, steps, checklists)</li>
+            <li>Optional voice input & spoken responses (if your browser supports it)</li>
+          </ul>
+        </div>
+
+        <div class="mt-2 pt-3 border-t border-slate-700/80 text-[11px] text-slate-500 leading-relaxed">
+          <p>
+            Voice control uses your browser's <span class="font-mono">SpeechRecognition</span> and <span class="font-mono">SpeechSynthesis</span> APIs.
+            Data stays on-device in this demo.
+          </p>
+          <p class="mt-1.5">
+            Tip: Press <span class="font-mono bg-slate-900/80 px-1.5 py-0.5 rounded">Enter</span> to execute, or click any preset.
+          </p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // Utility: clock
+    function updateClock() {
+      const el = document.getElementById('kara-clock');
+      if (!el) return;
+      const now = new Date();
+      const formatted = now.toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      el.textContent = formatted;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    const consoleEl = document.getElementById('console');
+    const inputEl = document.getElementById('kara-input');
+    const sendBtn = document.getElementById('send-btn');
+    const voiceBtn = document.getElementById('voice-btn');
+    const voiceIndicator = document.getElementById('voice-indicator');
+
+    let recognition = null;
+    let recognizing = false;
+
+    // Voice setup (best-effort)
+    function initVoice() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        voiceBtn.disabled = true;
+        voiceBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        voiceBtn.textContent = 'Voice N/A';
+        return;
+      }
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        recognizing = true;
+        if (voiceIndicator) {
+          voiceIndicator.classList.remove('bg-slate-500');
+          voiceIndicator.classList.add('bg-emerald-400');
+        }
+        voiceBtn.textContent = 'Listening…';
+      };
+
+      recognition.onend = () => {
+        recognizing = false;
+        if (voiceIndicator) {
+          voiceIndicator.classList.remove('bg-emerald-400');
+          voiceIndicator.classList.add('bg-slate-500');
+        }
+        voiceBtn.textContent = 'Voice';
+      };
+
+      recognition.onerror = (event) => {
+        appendSystemLine(`[VOICE] error: ${event.error || 'unknown'}`);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        if (transcript) {
+          inputEl.value = transcript;
+          handleSubmit();
+        }
+      };
+    }
+
+    function speak(text) {
+      if (!('speechSynthesis' in window)) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 1.02;
+      utterance.pitch = 1.02;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function appendToConsole(html) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      consoleEl.appendChild(wrapper);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function escapeHTML(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function appendUserLine(text) {
+      const safe = escapeHTML(text || '').trim() || '·';
+      appendToConsole(`<div class="mb-1 text-slate-300"><span class="text-emerald-300">OPR ▸</span> ${safe}</div>`);
+    }
+
+    function appendKaraBlock(text) {
+      const safe = escapeHTML(text).replace(/\n/g, '<br>');
+      appendToConsole(`<div class="mb-3"><div class="text-cyan-300">KARA ▸</div><div class="text-slate-100">${safe}</div></div>`);
+    }
+
+    function appendSystemLine(text) {
+      const safe = escapeHTML(text);
+      appendToConsole(`<div class="mb-1 text-xs text-slate-500">[SYSTEM] ${safe}</div>`);
+    }
+
+    function handleCommand(raw) {
+      const input = raw.trim();
+      if (!input) {
+        return "Awaiting a directive, operator.";
+      }
+
+      const lower = input.toLowerCase();
+
+      // Core commands
+      if (lower === 'help' || lower === 'commands' || lower === 'kara help') {
+        return (
+          "Here is a quick rundown of my local capabilities:\n\n" +
+          "• General conversation and explanations.\n" +
+          "• Time & date: try `time` or `date`.\n" +
+          "• Calculations: `calc 2+2*5` or `calc (3.5 + 4) / 2`.\n" +
+          "• Planning: ask me to outline steps, checklists, or mini roadmaps.\n" +
+          "• System-style prompts: `summarize what you can do`, `who are you`, `status`.\n" +
+          "• Voice control: toggle the Voice button if your browser allows it.\n\n" +
+          "Note: This demo runs entirely in your browser. I do not have internet access or long-term memory."
+        );
+      }
+
+      if (lower === 'time' || lower === 'date' || lower.includes('what time') || lower.includes('current time')) {
+        const now = new Date();
+        const time = now.toLocaleTimeString();
+        const date = now.toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        return `Local system time is ${time}.\nToday is ${date}.`;
+      }
+
+      if (lower.startsWith('calc ')) {
+        const expr = input.slice(5).trim();
+        if (!expr) return 'Please provide an expression, for example: `calc (3 + 7) * 2`.';
+        try {
+          if (!/^[-+*/%().,0-9\s]+$/.test(expr)) {
+            return 'For safety, the calculator only accepts numbers and basic operators (+ - * / % ()).';
+          }
+          const sanitized = expr.replace(/,/g, '.');
+          // eslint-disable-next-line no-eval
+          const result = eval(sanitized);
+          if (typeof result === 'number' && isFinite(result)) {
+            return `Computation complete.\nExpression: ${expr}\nResult: ${result}`;
+          }
+          return 'The expression did not evaluate to a finite number.';
+        } catch (e) {
+          return 'I could not evaluate that expression. Please check the syntax and try again.';
+        }
+      }
+
+      if (lower === 'status' || lower === 'system status') {
+        return (
+          "KARA core is stable and fully operational.\n\n" +
+          "• Mode: Local demo (no external network)\n" +
+          "• Channel: Single-page web interface\n" +
+          "• Uptime: Relative to your tab's lifetime\n" +
+          "• Safety: Sandboxed JavaScript only\n\n" +
+          "You may proceed with instructions, questions, or planning tasks."
+        );
+      }
+
+      if (lower.includes('who are you') || lower.startsWith('who is kara') || lower === 'kara') {
+        return (
+          "I am KARA, a Jarvis-inspired assistant running entirely inside your browser.\n" +
+          "I combine a conversational interface with a command-style console. In this demo I do not call any external services—" +
+          "everything you see is powered by front-end JavaScript."
+        );
+      }
+
+      if (lower.includes('summarize what you can do') || lower.includes('what can you do')) {
+        return (
+          "In this self-contained demo, my abilities are intentionally focused:\n\n" +
+          "1. Dialogue: respond to your questions and instructions with a Jarvis-style tone.\n" +
+          "2. Timekeeping: read the time and date directly from your device.\n" +
+          "3. Arithmetic: perform quick calculations via the `calc` command.\n" +
+          "4. Structuring: turn vague goals into step-by-step lists or plans.\n" +
+          "5. Voice I/O: where supported, capture your speech and speak back responses.\n\n" +
+          "Within those constraints, treat me as your on-demand co-pilot."
+        );
+      }
+
+      // Simple natural language patterns
+      if (/(plan|steps|how do i|how to)/i.test(input) && /(project|learn|build|create|start)/i.test(input)) {
+        return (
+          "Let's break that down systematically. While I cannot execute tasks outside this page, I can propose a plan:\n\n" +
+          "1) Clarify the outcome: define what “done” looks like in one or two sentences.\n" +
+          "2) Decompose: list 5–10 concrete steps needed to get there.\n" +
+          "3) Prioritize: mark the first step that unblocks everything else.\n" +
+          "4) Timebox: reserve 25–50 focused minutes for that first step.\n" +
+          "5) Feedback loop: after execution, return here and ask me to refine or expand the plan.\n\n" +
+          "If you tell me the exact goal, I can generate a tailored checklist for you."
+        );
+      }
+
+      if (/thank(s| you)/i.test(input)) {
+        return "You're welcome, operator. Standing by for the next directive.";
+      }
+
+      if (/^(hi|hello|hey|yo|sup)\b/i.test(input)) {
+        return "Online and attentive. How may I assist you right now?";
+      }
+
+      // Generic fallback
+      return (
+        "Processing your request in local mode. While I can't reach external data sources here, I can still help you think:\n\n" +
+        "• If you're exploring an idea, I can outline pros, cons, and next steps.\n" +
+        "• If you're learning something, I can give structured explanations and analogies.\n" +
+        "• If you're planning, I can generate step-by-step checklists and roadmaps.\n\n" +
+        "Try rephrasing your request as a clear objective—for example, `help me design a study plan for learning X`."
+      );
+    }
+
+    function handleSubmit() {
+      const value = inputEl.value;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+
+      appendUserLine(trimmed);
+      inputEl.value = '';
+
+      // Simulate slight processing delay
+      appendSystemLine('routing to kara-core…');
+      setTimeout(() => {
+        const reply = handleCommand(trimmed);
+        appendKaraBlock(reply);
+        speak(reply);
+      }, 220);
+    }
+
+    sendBtn.addEventListener('click', handleSubmit);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    });
+
+    // Preset buttons
+    document.querySelectorAll('[data-kara-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.getAttribute('data-kara-preset');
+        if (!cmd) return;
+        inputEl.value = cmd;
+        handleSubmit();
+      });
+    });
+
+    // Voice button
+    voiceBtn.addEventListener('click', () => {
+      if (!recognition) {
+        appendSystemLine('Voice recognition is not available in this browser.');
+        return;
+      }
+      if (recognizing) {
+        recognition.stop();
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          // Some browsers throw on double start; ignore.
+        }
+      }
+    });
+
+    // Initialize voice last
+    initVoice();
+
+    // Focus input on load
+    window.addEventListener('load', () => {
+      inputEl.focus();
+    });
+  </script>
+</body>
+</html>
